@@ -1,0 +1,27 @@
+{
+  "name": "cpp",
+  "version-string": "1.0.0",
+  "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake-config",
+      "version>=": "2024-05-23"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "version>=": "2024-04-23"
+    },
+    {
+      "name": "fmt",
+      "version>=": "11.0.2#1"
+    },
+    {
+      "name": "argparse",
+      "version>=": "3.1"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.15.2"
+    }
+  ]
+}
