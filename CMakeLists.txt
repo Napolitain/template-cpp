@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 4.3...4.4)
 
 project(template LANGUAGES CXX)
 
@@ -8,7 +8,8 @@ endif()
 
 option(template_BUILD_TESTS "Build tests" ${PROJECT_IS_TOP_LEVEL})
 option(template_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
-option(template_NATIVE "Optimize for the host CPU (-march=native)" OFF)
+option(template_NATIVE "Optimize for the host CPU (-march=native)" ON)
+option(template_COVERAGE "Instrument for clang source-based coverage" OFF)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -56,4 +57,29 @@ if(template_BUILD_TESTS)
 
   include(GoogleTest)
   gtest_discover_tests(template_tests)
+endif()
+
+if(template_COVERAGE)
+  target_compile_options(template_options INTERFACE -fprofile-instr-generate -fcoverage-mapping)
+  target_link_options(template_options INTERFACE -fprofile-instr-generate)
+
+  # Prefer the LLVM tools that ship next to the compiler (e.g. /usr/lib/llvm-22/bin).
+  file(REAL_PATH "${CMAKE_CXX_COMPILER}" _cxx_real)
+  get_filename_component(_llvm_bin "${_cxx_real}" DIRECTORY)
+  find_program(LLVM_PROFDATA llvm-profdata HINTS "${_llvm_bin}" REQUIRED)
+  find_program(LLVM_COV llvm-cov HINTS "${_llvm_bin}" REQUIRED)
+
+  set(_cov_dir "${CMAKE_BINARY_DIR}/coverage")
+  set(_cov_args $<TARGET_FILE:template_tests> -instr-profile=${_cov_dir}/coverage.profdata
+    -ignore-filename-regex=/_deps/ -ignore-filename-regex=/tests/)
+  add_custom_target(coverage
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${_cov_dir}
+    COMMAND ${CMAKE_COMMAND} -E env LLVM_PROFILE_FILE=${_cov_dir}/%p.profraw
+      ${CMAKE_CTEST_COMMAND} --test-dir ${CMAKE_BINARY_DIR} --output-on-failure
+    COMMAND ${LLVM_PROFDATA} merge -sparse ${_cov_dir}/*.profraw -o ${_cov_dir}/coverage.profdata
+    COMMAND ${LLVM_COV} report ${_cov_args}
+    COMMAND ${LLVM_COV} show ${_cov_args} -format=html -output-dir=${_cov_dir}/html
+    DEPENDS template_tests
+    COMMENT "Coverage report: ${_cov_dir}/html/index.html"
+  )
 endif()

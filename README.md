@@ -12,7 +12,8 @@ tests/              GoogleTest tests
 ```sh
 prek install                         # install pre-commit + pre-push hooks
 cmake --workflow --preset debug      # configure + build + test
-cmake --workflow --preset release    # -O3, full LTO, stripped
+cmake --workflow --preset release    # -O3, full LTO, -march=native, stripped
+cmake --workflow --preset coverage   # clang source-based coverage → build/coverage/coverage/html
 ./build/release/template_example
 prek run -a                          # pre-commit hooks
 prek run -a --hook-stage pre-push    # pre-push hooks
@@ -21,7 +22,7 @@ prek run -a --hook-stage pre-push    # pre-push hooks
 - pre-commit: `clang-format -i`
 - pre-push: `clang-tidy --fix --fix-notes`, `cppcheck` (no autofix available)
 
-Release is the default build type when none is given. `-Dtemplate_NATIVE=ON` adds `-march=native`.
+Opinionated defaults: Release build type, `-march=native` everywhere (`-Dtemplate_NATIVE=OFF` for portable binaries), `-Werror` when top-level.
 
 ## Using as a dependency
 

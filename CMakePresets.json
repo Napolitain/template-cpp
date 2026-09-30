@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "configurePresets": [
     {
       "name": "base",
@@ -23,6 +23,14 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "coverage",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "template_COVERAGE": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -33,6 +41,13 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "targets": [
+        "coverage"
+      ]
     }
   ],
   "testPresets": [
@@ -83,6 +98,19 @@
         {
           "type": "test",
           "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "coverage",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "coverage"
+        },
+        {
+          "type": "build",
+          "name": "coverage"
         }
       ]
     }
