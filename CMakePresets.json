@@ -1,118 +1,118 @@
 {
-  "version": 11,
-  "configurePresets": [
-    {
-      "name": "base",
-      "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "cacheVariables": {
-        "CMAKE_CXX_COMPILER": "clang++"
-      }
-    },
-    {
-      "name": "debug",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "release",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    {
-      "name": "coverage",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "template_COVERAGE": "ON"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "debug",
-      "configurePreset": "debug"
-    },
-    {
-      "name": "release",
-      "configurePreset": "release"
-    },
-    {
-      "name": "coverage",
-      "configurePreset": "coverage",
-      "targets": [
-        "coverage"
-      ]
-    }
-  ],
-  "testPresets": [
-    {
-      "name": "debug",
-      "configurePreset": "debug",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "release",
-      "configurePreset": "release",
-      "output": {
-        "outputOnFailure": true
-      }
-    }
-  ],
-  "workflowPresets": [
-    {
-      "name": "debug",
-      "steps": [
+    "version": 11,
+    "configurePresets": [
         {
-          "type": "configure",
-          "name": "debug"
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
         },
         {
-          "type": "build",
-          "name": "debug"
+            "name": "debug",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
         },
         {
-          "type": "test",
-          "name": "debug"
+            "name": "release",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "coverage",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "template_COVERAGE": "ON"
+            }
         }
-      ]
-    },
-    {
-      "name": "release",
-      "steps": [
+    ],
+    "buildPresets": [
         {
-          "type": "configure",
-          "name": "release"
+            "name": "debug",
+            "configurePreset": "debug"
         },
         {
-          "type": "build",
-          "name": "release"
+            "name": "release",
+            "configurePreset": "release"
         },
         {
-          "type": "test",
-          "name": "release"
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "targets": [
+                "coverage"
+            ]
         }
-      ]
-    },
-    {
-      "name": "coverage",
-      "steps": [
+    ],
+    "testPresets": [
         {
-          "type": "configure",
-          "name": "coverage"
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true
+            }
         },
         {
-          "type": "build",
-          "name": "coverage"
+            "name": "release",
+            "configurePreset": "release",
+            "output": {
+                "outputOnFailure": true
+            }
         }
-      ]
-    }
-  ]
+    ],
+    "workflowPresets": [
+        {
+            "name": "debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "debug"
+                },
+                {
+                    "type": "build",
+                    "name": "debug"
+                },
+                {
+                    "type": "test",
+                    "name": "debug"
+                }
+            ]
+        },
+        {
+            "name": "release",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "release"
+                },
+                {
+                    "type": "build",
+                    "name": "release"
+                },
+                {
+                    "type": "test",
+                    "name": "release"
+                }
+            ]
+        },
+        {
+            "name": "coverage",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "coverage"
+                },
+                {
+                    "type": "build",
+                    "name": "coverage"
+                }
+            ]
+        }
+    ]
 }

@@ -5,7 +5,7 @@
 namespace tmpl {
 
 std::string greet(std::string_view name) {
-  return std::format("Hello, {}!", name);
+    return std::format("Hello, {}!", name);
 }
 
 } // namespace tmpl

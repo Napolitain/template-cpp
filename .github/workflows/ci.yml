@@ -1,38 +1,38 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+    push:
+        branches: [main]
+    pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-26.04
-    strategy:
-      matrix:
-        preset: [debug, release, coverage]
-    steps:
-      - uses: actions/checkout@v7.0.1
+    build:
+        runs-on: ubuntu-26.04
+        strategy:
+            matrix:
+                preset: [debug, release, coverage]
+        steps:
+            - uses: actions/checkout@v7.0.1
 
-      - name: Use latest clang
-        run: sudo ln -sf /usr/bin/clang++-22 /usr/local/bin/clang++
+            - name: Use clang 21 (matches local)
+              run: sudo ln -sf /usr/bin/clang++-21 /usr/local/bin/clang++
 
-      - name: Build and test
-        run: cmake --workflow --preset ${{ matrix.preset }}
+            - name: Build and test
+              run: cmake --workflow --preset ${{ matrix.preset }}
 
-  lint:
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v7.0.1
+    lint:
+        runs-on: ubuntu-26.04
+        steps:
+            - uses: actions/checkout@v7.0.1
 
-      # Lint with the same clang major as local hooks so formatting/tidy results match.
-      - name: Install tools
-        run: |
-          sudo apt-get update && sudo apt-get install -y cppcheck
-          for t in clang++ clang-format clang-tidy; do sudo ln -sf /usr/bin/$t-21 /usr/local/bin/$t; done
+            # Same clang major as local hooks so formatting/tidy results match.
+            - name: Install tools
+              run: |
+                  sudo apt-get update && sudo apt-get install -y cppcheck
+                  for t in clang++ clang-format clang-tidy; do sudo ln -sf /usr/bin/$t-21 /usr/local/bin/$t; done
 
-      - name: Hooks (pre-commit)
-        uses: j178/prek-action@v3.0.0
+            - name: Hooks (pre-commit)
+              uses: j178/prek-action@v3.0.0
 
-      - name: Hooks (pre-push)
-        run: prek run --show-diff-on-failure --all-files --hook-stage pre-push
+            - name: Hooks (pre-push)
+              run: prek run --show-diff-on-failure --all-files --hook-stage pre-push
