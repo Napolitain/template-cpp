@@ -1,3 +1,10 @@
 #pragma once
 
-int add(int a, int b);
+#include <string>
+#include <string_view>
+
+namespace tmpl {
+
+[[nodiscard]] std::string greet(std::string_view name);
+
+} // namespace tmpl

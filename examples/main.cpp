@@ -1,8 +1,16 @@
 #include "template/lib.hpp"
-#include <iostream>
+
+#include <cstdio>
+#include <cstdlib>
+#include <exception>
 #include <print>
 
 int main() {
-	auto x = add(1, 2);
-	std::println("1 + 2 = {}", x);
+  try {
+    std::println("{}", tmpl::greet("world"));
+  } catch (const std::exception &e) {
+    std::fputs(e.what(), stderr);
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
 }

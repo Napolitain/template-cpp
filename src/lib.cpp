@@ -1,5 +1,11 @@
 #include "template/lib.hpp"
 
-int add(const int a, const int b) {
-	return a + b;
+#include <format>
+
+namespace tmpl {
+
+std::string greet(std::string_view name) {
+  return std::format("Hello, {}!", name);
 }
+
+} // namespace tmpl
