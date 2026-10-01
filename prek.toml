@@ -30,27 +30,17 @@ entry = "clang-format -i"
 types_or = ["c++", "c"]
 stages = ["pre-commit"]
 
-# pre-push (both need build/debug/compile_commands.json, so configure first)
+# pre-push: tidy/cppcheck/coverage/mutation are CMake targets (see CMakeLists.txt, CMakePresets.json)
 
 [[repos.hooks]]
-id = "clang-tidy"
-name = "clang-tidy"
+id = "lint"
+name = "clang-tidy --fix + cppcheck"
 language = "system"
-entry = "sh -c 'cmake --preset debug >/dev/null && clang-tidy -p build/debug --fix --fix-notes --quiet \"$@\"' --"
-files = '^(src|examples|tests)/.*\.cpp$'
-require_serial = true
-stages = ["pre-push"]
-priority = 10
-
-[[repos.hooks]]
-id = "cppcheck"
-name = "cppcheck"
-language = "system"
-entry = "sh -c 'cmake --preset debug >/dev/null && cppcheck --project=build/debug/compile_commands.json -ibuild --enable=warning,style,performance,portability --inline-suppr --suppress=missingIncludeSystem --error-exitcode=1 --quiet'"
-types_or = ["c++", "c"]
+entry = "cmake --workflow --preset lint"
+types_or = ["c++", "c", "cmake"]
 pass_filenames = false
 stages = ["pre-push"]
-priority = 20
+priority = 10
 
 [[repos.hooks]]
 id = "test-coverage"
@@ -60,15 +50,15 @@ entry = "cmake --workflow --preset coverage"
 types_or = ["c++", "c", "cmake"]
 pass_filenames = false
 stages = ["pre-push"]
-priority = 30
+priority = 20
 
-# manual: prek run --hook-stage manual mull --all-files (needs Mull for LLVM 21, see README)
+# manual: prek run --hook-stage manual mull --all-files (needs Mull for your clang major, see README)
 
 [[repos.hooks]]
 id = "mull"
 name = "mull (mutation testing)"
 language = "system"
-entry = "sh -c 'cmake --preset mutation >/dev/null && cmake --build --preset mutation && mull-runner-21 build/mutation/template_tests'"
+entry = "cmake --workflow --preset mutation"
 types_or = ["c++", "c", "cmake"]
 pass_filenames = false
 stages = ["manual"]

@@ -38,7 +38,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "template_BUILD_EXAMPLES": "OFF",
-                "template_MULL_PLUGIN": "/usr/lib/mull-ir-frontend-21"
+                "template_MUTATION": "ON"
             }
         }
     ],
@@ -60,7 +60,18 @@
         },
         {
             "name": "mutation",
-            "configurePreset": "mutation"
+            "configurePreset": "mutation",
+            "targets": [
+                "mutation"
+            ]
+        },
+        {
+            "name": "lint",
+            "configurePreset": "debug",
+            "targets": [
+                "tidy",
+                "cppcheck"
+            ]
         }
     ],
     "testPresets": [
@@ -124,6 +135,32 @@
                 {
                     "type": "build",
                     "name": "coverage"
+                }
+            ]
+        },
+        {
+            "name": "lint",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "debug"
+                },
+                {
+                    "type": "build",
+                    "name": "lint"
+                }
+            ]
+        },
+        {
+            "name": "mutation",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "mutation"
+                },
+                {
+                    "type": "build",
+                    "name": "mutation"
                 }
             ]
         }

@@ -11,7 +11,7 @@ option(template_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
 option(template_NATIVE "Optimize for the host CPU (-march=native)" ON)
 option(template_COVERAGE "Instrument for clang source-based coverage" OFF)
 set(template_COVERAGE_MIN 80 CACHE STRING "Minimum line coverage (%) for the coverage target")
-set(template_MULL_PLUGIN "" CACHE FILEPATH "Mull IR frontend plugin; set to build mutants for mull-runner")
+option(template_MUTATION "Build mutants with Mull and add the mutation target" OFF)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,10 +32,6 @@ target_compile_options(template_options INTERFACE
 target_link_options(template_options INTERFACE
     $<$<CONFIG:Release>:-flto=full -s>
 )
-if(template_MULL_PLUGIN)
-    # Only our targets get mutants; mull.yml excludes tests/.
-    target_compile_options(template_options INTERFACE -fpass-plugin=${template_MULL_PLUGIN} -g -grecord-command-line)
-endif()
 
 add_library(template src/lib.cpp)
 add_library(template::template ALIAS template)
@@ -96,4 +92,48 @@ if(template_COVERAGE)
         DEPENDS template_tests
         COMMENT "Coverage report: ${_cov_dir}/html/index.html"
     )
+endif()
+
+# Mutation testing with Mull: cmake --workflow --preset mutation
+if(template_MUTATION)
+    # Mull ships one plugin/runner per LLVM major; pick the one matching the compiler.
+    string(REGEX MATCH "^[0-9]+" _llvm_major "${CMAKE_CXX_COMPILER_VERSION}")
+    find_file(MULL_PLUGIN mull-ir-frontend-${_llvm_major}
+        PATHS /usr/lib /usr/local/lib /opt/homebrew/lib NO_DEFAULT_PATH REQUIRED)
+    find_program(MULL_RUNNER mull-runner-${_llvm_major} REQUIRED)
+
+    # Only our targets get mutants; mull.yml excludes tests/.
+    target_compile_options(template_options INTERFACE -fpass-plugin=${MULL_PLUGIN} -g -grecord-command-line)
+    add_custom_target(mutation
+        COMMAND ${MULL_RUNNER} $<TARGET_FILE:template_tests>
+        DEPENDS template_tests
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        USES_TERMINAL
+    )
+endif()
+
+# Static analysis on our sources: cmake --workflow --preset lint
+if(PROJECT_IS_TOP_LEVEL)
+    file(GLOB_RECURSE _lint_sources CONFIGURE_DEPENDS
+        ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/examples/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.cpp)
+
+    find_program(CLANG_TIDY clang-tidy)
+    if(CLANG_TIDY)
+        add_custom_target(tidy
+            COMMAND ${CLANG_TIDY} -p ${CMAKE_BINARY_DIR} --fix --fix-notes --quiet ${_lint_sources}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            USES_TERMINAL
+        )
+    endif()
+
+    find_program(CPPCHECK cppcheck)
+    if(CPPCHECK)
+        add_custom_target(cppcheck
+            COMMAND ${CPPCHECK} --project=${CMAKE_BINARY_DIR}/compile_commands.json -i${CMAKE_BINARY_DIR}
+                --enable=warning,style,performance,portability --inline-suppr
+                --suppress=missingIncludeSystem --error-exitcode=1 --quiet
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            USES_TERMINAL
+        )
+    endif()
 endif()

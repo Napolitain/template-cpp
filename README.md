@@ -15,13 +15,17 @@ prek install                         # install pre-commit + pre-push hooks
 cmake --workflow --preset debug      # configure + build + test
 cmake --workflow --preset release    # -O3, full LTO, -march=native, stripped
 cmake --workflow --preset coverage   # tests + coverage gate → build/coverage/coverage/html
+cmake --workflow --preset lint       # clang-tidy --fix + cppcheck
+cmake --workflow --preset mutation   # Mull (see below)
 ./build/release/template_example
 prek run -a                          # pre-commit hooks
 prek run -a --hook-stage pre-push    # pre-push hooks
 ```
 
 - pre-commit: `clang-format -i`
-- pre-push: `clang-tidy --fix --fix-notes`, `cppcheck` (no autofix available), tests + coverage gate (`coverage` preset)
+- pre-push: `lint` preset (`clang-tidy --fix --fix-notes` + `cppcheck`, no autofix available), `coverage` preset (tests + coverage gate)
+
+Everything runs through CMake presets and targets (`tidy`, `cppcheck`, `coverage`, `mutation`); hooks only call `cmake --workflow`.
 
 Opinionated defaults: Release build type, `-march=native` everywhere (`-Dtemplate_NATIVE=OFF` for portable binaries), `-Werror` when top-level.
 
@@ -56,7 +60,7 @@ Replay a failure with `RC_PARAMS="reproduce=<string printed on failure>"`.
 prek run --hook-stage manual mull --all-files
 ```
 
-The `mutation` preset sets `template_MULL_PLUGIN=/usr/lib/mull-ir-frontend-21`, which only instruments this project's targets. For another LLVM version, change it and `mull-runner-21` in `prek.toml`. Mutators and excluded paths are in `mull.yml`.
+The `mutation` preset turns on `template_MUTATION`, which finds `mull-ir-frontend-<N>` and `mull-runner-<N>` for your clang major and only instruments this project's targets. Mutators and excluded paths are in `mull.yml`.
 
 ## Using as a dependency
 
