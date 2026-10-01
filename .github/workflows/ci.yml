@@ -10,7 +10,7 @@ jobs:
         runs-on: ubuntu-26.04
         strategy:
             matrix:
-                preset: [debug, release, coverage]
+                preset: [debug, release]
         steps:
             - uses: actions/checkout@v7.0.1
 
@@ -20,7 +20,7 @@ jobs:
             - name: Build and test
               run: cmake --workflow --preset ${{ matrix.preset }}
 
-    lint:
+    hooks:
         runs-on: ubuntu-26.04
         steps:
             - uses: actions/checkout@v7.0.1
@@ -34,5 +34,6 @@ jobs:
             - name: Hooks (pre-commit)
               uses: j178/prek-action@v3.0.0
 
+            # Includes ctest + coverage gate (coverage preset).
             - name: Hooks (pre-push)
               run: prek run --show-diff-on-failure --all-files --hook-stage pre-push

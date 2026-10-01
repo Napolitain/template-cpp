@@ -10,6 +10,8 @@ option(template_BUILD_TESTS "Build tests" ${PROJECT_IS_TOP_LEVEL})
 option(template_BUILD_EXAMPLES "Build examples" ${PROJECT_IS_TOP_LEVEL})
 option(template_NATIVE "Optimize for the host CPU (-march=native)" ON)
 option(template_COVERAGE "Instrument for clang source-based coverage" OFF)
+set(template_COVERAGE_MIN 80 CACHE STRING "Minimum line coverage (%) for the coverage target")
+set(template_MULL_PLUGIN "" CACHE FILEPATH "Mull IR frontend plugin; set to build mutants for mull-runner")
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -30,6 +32,10 @@ target_compile_options(template_options INTERFACE
 target_link_options(template_options INTERFACE
     $<$<CONFIG:Release>:-flto=full -s>
 )
+if(template_MULL_PLUGIN)
+    # Only our targets get mutants; mull.yml excludes tests/.
+    target_compile_options(template_options INTERFACE -fpass-plugin=${template_MULL_PLUGIN} -g -grecord-command-line)
+endif()
 
 add_library(template src/lib.cpp)
 add_library(template::template ALIAS template)
@@ -50,10 +56,16 @@ if(template_BUILD_TESTS)
         SYSTEM
         FIND_PACKAGE_ARGS NAMES GTest
     )
-    FetchContent_MakeAvailable(googletest)
+    # Property-based testing; no tagged releases, so pinned to a commit.
+    set(RC_ENABLE_GTEST ON CACHE BOOL "" FORCE)
+    FetchContent_Declare(rapidcheck
+        URL https://github.com/emil-e/rapidcheck/archive/6e8dadfdafa3a74eabb52ead87f8787f72eccd0b.tar.gz
+        SYSTEM
+    )
+    FetchContent_MakeAvailable(googletest rapidcheck)
 
     add_executable(template_tests tests/test_lib.cpp)
-    target_link_libraries(template_tests PRIVATE template template_options GTest::gtest_main)
+    target_link_libraries(template_tests PRIVATE template template_options GTest::gtest_main rapidcheck_gtest)
 
     include(GoogleTest)
     gtest_discover_tests(template_tests)
@@ -79,6 +91,8 @@ if(template_COVERAGE)
         COMMAND ${LLVM_PROFDATA} merge -sparse ${_cov_dir}/*.profraw -o ${_cov_dir}/coverage.profdata
         COMMAND ${LLVM_COV} report ${_cov_args}
         COMMAND ${LLVM_COV} show ${_cov_args} -format=html -output-dir=${_cov_dir}/html
+        COMMAND ${CMAKE_COMMAND} -DLLVM_COV=${LLVM_COV} -DMIN=${template_COVERAGE_MIN}
+            "-DARGS=$<JOIN:${_cov_args},$<COMMA>>" -P ${PROJECT_SOURCE_DIR}/cmake/check_coverage.cmake
         DEPENDS template_tests
         COMMENT "Coverage report: ${_cov_dir}/html/index.html"
     )

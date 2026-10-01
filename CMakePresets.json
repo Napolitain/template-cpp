@@ -31,6 +31,15 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "template_COVERAGE": "ON"
             }
+        },
+        {
+            "name": "mutation",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "template_BUILD_EXAMPLES": "OFF",
+                "template_MULL_PLUGIN": "/usr/lib/mull-ir-frontend-21"
+            }
         }
     ],
     "buildPresets": [
@@ -48,6 +57,10 @@
             "targets": [
                 "coverage"
             ]
+        },
+        {
+            "name": "mutation",
+            "configurePreset": "mutation"
         }
     ],
     "testPresets": [

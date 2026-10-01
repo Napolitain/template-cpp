@@ -1,0 +1,25 @@
+name: Mutation
+
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: "0 4 * * 1"
+
+env:
+    MULL_DEB: https://github.com/mull-project/mull/releases/download/0.34.1/Mull-21-0.34.1-LLVM-21.1.8-ubuntu-amd64-26.04.deb
+
+jobs:
+    mull:
+        runs-on: ubuntu-26.04
+        steps:
+            - uses: actions/checkout@v7.0.1
+
+            - name: Install Mull (LLVM 21)
+              run: |
+                  curl -sSfL -o /tmp/mull.deb "$MULL_DEB"
+                  sudo apt-get install -y /tmp/mull.deb
+                  sudo ln -sf /usr/bin/clang++-21 /usr/local/bin/clang++
+
+            - uses: j178/prek-action@v3.0.0
+              with:
+                  extra-args: --all-files --hook-stage manual mull

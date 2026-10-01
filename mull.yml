@@ -1,0 +1,7 @@
+# https://mull.readthedocs.io/en/latest/MullConfig.html
+mutators:
+  - cxx_all
+excludePaths:
+  - .*/tests/.*
+  - .*/_deps/.*
+timeout: 10000

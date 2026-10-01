@@ -51,3 +51,24 @@ types_or = ["c++", "c"]
 pass_filenames = false
 stages = ["pre-push"]
 priority = 20
+
+[[repos.hooks]]
+id = "test-coverage"
+name = "ctest + coverage (min 80% lines)"
+language = "system"
+entry = "cmake --workflow --preset coverage"
+types_or = ["c++", "c", "cmake"]
+pass_filenames = false
+stages = ["pre-push"]
+priority = 30
+
+# manual: prek run --hook-stage manual mull --all-files (needs Mull for LLVM 21, see README)
+
+[[repos.hooks]]
+id = "mull"
+name = "mull (mutation testing)"
+language = "system"
+entry = "sh -c 'cmake --preset mutation >/dev/null && cmake --build --preset mutation && mull-runner-21 build/mutation/template_tests'"
+types_or = ["c++", "c", "cmake"]
+pass_filenames = false
+stages = ["manual"]
