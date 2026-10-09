@@ -25,6 +25,14 @@ prek run -a --hook-stage pre-push    # pre-push hooks
 - pre-commit: `clang-format -i`
 - pre-push: `lint` preset (`clang-tidy --fix --fix-notes` + `cppcheck`, no autofix available), `coverage` preset (tests + coverage gate)
 
+## Complexity
+
+The existing `readability-*` clang-tidy checks include
+`readability-function-cognitive-complexity`. Its maximum is explicitly set to 15
+in `.clang-tidy` (upstream default: 25), with violations treated as errors by the
+pre-push hook and CI. It checks project sources, examples and tests. Refactoring
+is manual. There is no separate cyclomatic-complexity gate in this toolchain.
+
 Everything runs through CMake presets and targets (`tidy`, `cppcheck`, `coverage`, `mutation`); hooks only call `cmake --workflow`.
 
 Opinionated defaults: Release build type, `-march=native` everywhere (`-Dtemplate_NATIVE=OFF` for portable binaries), `-Werror` when top-level.

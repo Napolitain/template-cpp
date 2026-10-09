@@ -14,3 +14,5 @@ Checks: >
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*/(include|src|examples|tests)/.*'
 FormatStyle: file
+CheckOptions:
+  readability-function-cognitive-complexity.Threshold: 15
