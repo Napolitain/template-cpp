@@ -30,9 +30,12 @@ target_compile_options(template_options INTERFACE
     $<$<BOOL:${template_NATIVE}>:-march=native>
 )
 target_link_options(template_options INTERFACE
-    $<$<CONFIG:Release>:-flto=full -s>
+    $<$<CONFIG:Release>:-flto=full>
 )
 include(cmake/pgo.cmake)
+if(NOT _template_profile_collection)
+    target_link_options(template_options INTERFACE $<$<CONFIG:Release>:-s>)
+endif()
 
 add_library(template src/lib.cpp)
 add_library(template::template ALIAS template)

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Optional converter, built outside normal project builds. See README for deps.
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+source_dir="$root/build/tools/llvm-propeller"
+revision=ddfb8b7cbdb87b0cbacff5ed993adb09a6999174
+if [[ ! -d $source_dir ]]; then
+    mkdir -p "$source_dir"
+    git -C "$source_dir" init -q
+    git -C "$source_dir" remote add origin https://github.com/google/llvm-propeller.git
+fi
+source_dir=$(cd -- "$source_dir" && pwd -P)
+# Resume interrupted downloads/builds; never overwrite edits to an existing tree.
+if [[ ! -f $source_dir/CMakeLists.txt ]]; then
+    git -C "$source_dir" fetch --depth=1 origin "$revision"
+    git -C "$source_dir" checkout --detach FETCH_HEAD
+fi
+if [[ $(git -C "$source_dir" rev-parse HEAD) != "$revision" ]] ||
+    [[ -n $(git -C "$source_dir" status --porcelain --untracked-files=no) ]]; then
+    echo "Expected clean Propeller revision $revision in $source_dir" >&2
+    exit 1
+fi
+cmake -S "$source_dir" -B "$source_dir/build" -G Ninja \
+    -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_STATIC_ZSTD=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build "$source_dir/build" --target generate_propeller_profiles \
+    --parallel "${CMAKE_BUILD_PARALLEL_LEVEL:-4}"
+printf 'Converter ready. Add to this shell: export PATH=%q:%s\n' "$source_dir/build/propeller" "\$PATH"

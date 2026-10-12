@@ -104,64 +104,74 @@ Add your own dependencies with `FetchContent_Declare(... FIND_PACKAGE_ARGS ...)`
 
 ## Profile-guided optimization
 
-Optional [Clang instrumentation PGO](https://clang.llvm.org/docs/UsersManual.html#profile-guided-optimization)
-uses Release, the existing native CPU/LTO settings and separate build directories.
-Use `llvm-profdata` from the same LLVM release as Clang (included in the Nix shell).
-The PGO presets disable tests so test discovery does not enter the training profile.
-Normal presets still use `template_PGO=OFF`; coverage and Mull cannot be combined
-with PGO. Run these commands from the project root:
+Opt-in release builds retain **full LTO**. Use Clang/LLD 21+ with matching
+`llvm-profdata` and `llvm-profgen` (provided by `nix develop`). AutoFDO and
+Propeller additionally require Linux `perf`, hardware branch-stack sampling and
+permission to record it. Normal builds require no profiles.
+On Linux the helper uses LLD for the baseline and every optimized variant.
+
+Create an executable `train.sh` that runs `"$1"` with representative inputs;
+the helper passes it the absolute training-binary path. For a PGO smoke test only,
+replace `./train.sh` with `env` to run the greeting once. Sampling needs a
+longer CPU workload with samples inside your executable.
 
 ```sh
-cmake --preset pgo-baseline
-cmake --build --preset pgo-baseline
-cmake --preset pgo-generate
-cmake --build --preset pgo-generate
-rm -rf build/pgo/raw                  # discard profiles from earlier training
-mkdir -p build/pgo/raw
-LLVM_PROFILE_FILE="$PWD/build/pgo/raw/%m-%p.profraw" ./build/pgo-generate/template_example
-# Repeat the preceding command with your representative application workloads.
-llvm-profdata merge build/pgo/raw/*.profraw -o build/pgo/profile.profdata
-cmake --preset pgo-use
-cmake --build --preset pgo-use
-./build/pgo-use/template_example
-hyperfine --warmup 3 './build/pgo-baseline/template_example' './build/pgo-use/template_example'
+./tools/perf-build baseline
+./tools/perf-build pgo -- ./train.sh             # instrument, train, merge, rebuild
+./tools/perf-build autofdo -- ./train.sh         # perf, llvm-profgen, rebuild
+./tools/perf-build propeller -- ./train.sh       # perf, arrange blocks/functions
+./tools/perf-build propeller-pgo -- ./train.sh   # PGO, then fresh layout sampling
+./tools/perf-build propeller-autofdo -- ./train.sh
 ```
 
-`hyperfine` is an optional separate install. The greeting is a pipeline smoke test,
-not a performance workload: replace it with realistic input sizes, hot paths and
-concurrency, then benchmark both binaries on an independent evaluation workload.
-Check identical outputs and run your application tests against the optimized build.
-Keep source, compiler, dependencies and CPU flags fixed while collecting/applying
-profiles; retrain after changes and inspect missing/stale-profile diagnostics.
-Let training processes exit normally to write profiles. Do not merge with `-sparse`
-(that is for coverage), and do not use coverage/Mull data as training profiles.
-An alternate profile must be an absolute path:
-`cmake --preset pgo-use -Dtemplate_PGO_PROFILE=/absolute/path/app.profdata`.
-Changing its contents triggers recompilation.
+Pick one optimization mode. Outputs are `build/pgo-baseline/template_example`
+and `build/<mode>-use/template_example`. Set `PERF_TARGET` to your CMake target
+and, if needed, `PERF_BINARY` to its path relative to the build directory.
+Profiles and an input record stay in fresh directories under `build/pgo/`.
+Run builds serially; collection and use must share source, toolchain and flags.
 
-Keep both `build/pgo-baseline/template_example` (explicit `template_PGO=OFF`) and
-`build/pgo-use/template_example` (profile-use). Rebuilding either preset leaves
-the other binary available. The instrumented `pgo-generate` binary is for training,
-not the performance baseline. PGO can trade performance between workloads and adds
-training/build costs; it is not guaranteed to improve every input. Compare repeated
-runs on evaluation inputs excluded from training, inspect each important workload,
-and keep the baseline when differences are within measurement noise or a regression
-exceeds your application's tolerance. Also compare memory, binary size and build time.
+**Propeller converter, one-time setup:** `tools/build-propeller` fetches a pinned
+[upstream converter](https://github.com/google/llvm-propeller) and its dependencies.
+On Linux with Nix:
 
-### Sampling and code layout
+```sh
+nix develop .#propeller
+./tools/build-propeller
+export PATH="$PWD/build/tools/llvm-propeller/build/propeller:$PATH"
+```
 
-Clang also supports [sample PGO / AutoFDO](https://clang.llvm.org/docs/UsersManual.html#using-sampling-profilers).
-This requires a separate profiling build with `-gline-tables-only`,
-`-fdebug-info-for-profiling` and `-funique-internal-linkage-names`, and removal of
-the release `-s` link option. On Linux, collect representative `perf` samples and
-convert them with a compatible `create_llvm_prof` (AutoFDO) or `llvm-profgen`, using
-that exact unstripped binary. Rebuild with `-fprofile-sample-use=/absolute/profile`
-and the matching profiling options. Raw `perf.data` is not an LLVM input profile.
-Hardware events, branch-stack support and perf access vary by CPU/kernel, so there
-is no portable sampling preset or validated collection workflow in this template.
+Without Nix, install upstream's build prerequisites first (Clang, CMake, Ninja,
+Python, pkg-config, libelf, OpenSSL, zlib and zstd development files), then run the
+same helper. The source build can take several minutes and multiple GB of disk.
+Install/use your host's `perf` separately. In a Nix shell, set
+`NIX_ENFORCE_NO_NATIVE=0` if you want the template's host-native CPU tuning.
 
-[Propeller](https://github.com/google/llvm-propeller) is a separate layout/relinking
-workflow: it needs compatible Clang/LLD, basic-block address maps, branch samples,
-and conversion to both compiler and linker layout profiles. The supplied stripped
-LTO release is not prepared for it. No Propeller preset is provided; follow the
-upstream toolchain-specific procedure and validate the result before using it.
+Sampling defaults to `perf record -e cycles:u -j any,u -F 999`; override
+`PERF_EVENT` / `PERF_FREQUENCY` for your PMU. For example, an Intel hybrid
+CPU may need `PERF_EVENT=cpu_core/cycles/u` and a workload pinned to a P-core.
+Failed collection/conversion stops the build. Inspect the saved profiles for
+application hot paths; recollect after changing source, compiler or workload.
+Review missing-profile and symbol-ordering warnings before adopting a build.
+
+For manual/remote collection, use the `pgo-`, `autofdo-` or `propeller-`
+`generate`/`use` configure and build presets. Set `template_PGO_PROFILE`
+(instrumentation or sample profile), or both `template_PROPELLER_CC_PROFILE` and
+`template_PROPELLER_LD_PROFILE`, to absolute files on the use configure command.
+Propeller can combine with `-Dtemplate_PGO=USE` or `SAMPLE_USE`. Collection
+binaries keep symbols/maps; use binaries are stripped. Profile changes trigger
+recompilation, including LTO. Tests, coverage and mutation are excluded from training.
+
+Check correctness of the final executable, then compare it with the baseline on
+**separate evaluation inputs**, using repeated runs:
+
+```sh
+hyperfine --warmup 3 --runs 20 './evaluate.sh ./build/pgo-baseline/template_example' \
+    './evaluate.sh ./build/autofdo-use/template_example'
+perf stat -r 5 -e cycles,instructions,branches,branch-misses -- \
+    ./evaluate.sh ./build/autofdo-use/template_example
+```
+
+Measure both variants' counters, latency, memory and size. Profiles can regress
+other workloads; keep the baseline when gains are absent or within noise.
+See [Clang PGO/AutoFDO](https://clang.llvm.org/docs/UsersManual.html#profile-guided-optimization)
+for profile formats and sampling details.

@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Workload commands receive the absolute path of the training executable last.
+set -euo pipefail
+usage() {
+    echo "Usage: $0 baseline|pgo|autofdo|propeller|propeller-pgo|propeller-autofdo [-- workload-command ...]" >&2
+}
+mode=${1:-}
+case "$mode" in
+    baseline|pgo|autofdo|propeller|propeller-pgo|propeller-autofdo) shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage; exit 2 ;;
+esac
+if [[ ${1:-} == -- ]]; then shift; fi
+if [[ $mode != baseline && $# == 0 ]]; then
+    usage
+    echo "Supply a representative workload driver; it receives the executable as its last argument." >&2
+    exit 2
+fi
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd -- "$root"
+workload=("$@")
+target=${PERF_TARGET:-template_example}
+binary=${PERF_BINARY:-$target}
+need() { command -v "$1" >/dev/null || { echo "Missing tool: $1 (see README)" >&2; exit 1; }; }
+need cmake
+linker=()
+if [[ $(uname -s) == Linux ]]; then
+    # Use the same linker for the baseline and all optimized comparisons.
+    need ld.lld
+    linker=(-DCMAKE_LINKER_TYPE=LLD)
+fi
+case "$mode" in *pgo) need llvm-profdata ;; esac
+case "$mode" in *autofdo) need llvm-profgen ;; esac
+case "$mode" in autofdo|propeller*) need perf; need ld.lld ;; esac
+case "$mode" in propeller*) need generate_propeller_profiles ;; esac
+build() {
+    local preset=$1 directory=$2
+    shift 2
+    cmake --preset "$preset" -B "$root/build/$directory" "${linker[@]}" "$@"
+    cmake --build "$root/build/$directory" --target "$target"
+}
+if [[ $mode == baseline ]]; then
+    build pgo-baseline pgo-baseline
+    echo "Baseline: $root/build/pgo-baseline/$binary"
+    exit 0
+fi
+mkdir -p build/pgo
+data=$(mktemp -d "$root/build/pgo/$mode.XXXXXX")
+{
+    git describe --always --dirty 2>/dev/null || true
+    clang++ --version
+    printf 'mode=%s\nevent=%s\nworkload=' "$mode" "${PERF_EVENT:-cycles:u}"
+    printf '%q ' "${workload[@]}"
+    printf '\n'
+} > "$data/inputs.txt"
+echo "Profiles and input record: $data"
+record() {
+    perf record -o "$data/perf.data" -e "${PERF_EVENT:-cycles:u}" -j any,u \
+        -F "${PERF_FREQUENCY:-999}" -- "${workload[@]}" "$1"
+}
+pgo_mode=OFF
+pgo_profile=""
+case "$mode" in
+    pgo|propeller-pgo)
+        need llvm-profdata
+        build pgo-generate pgo-generate
+        mkdir -p "$data/raw"
+        LLVM_PROFILE_FILE="$data/raw/%m-%p.profraw" "${workload[@]}" "$root/build/pgo-generate/$binary"
+        llvm-profdata merge "$data/raw" -o "$data/profile.profdata"
+        pgo_mode=USE
+        pgo_profile="$data/profile.profdata"
+        ;;
+    autofdo|propeller-autofdo)
+        build autofdo-generate autofdo-generate
+        record "$root/build/autofdo-generate/$binary"
+        llvm-profgen --binary="$root/build/autofdo-generate/$binary" \
+            --perfdata="$data/perf.data" --output="$data/sample.prof" --format=text
+        [[ -s $data/sample.prof ]] || { echo "No application samples; train longer." >&2; exit 1; }
+        pgo_mode=SAMPLE_USE
+        pgo_profile="$data/sample.prof"
+        ;;
+esac
+case "$mode" in
+    propeller*)
+        build propeller-generate "$mode-generate" \
+            "-Dtemplate_PGO=$pgo_mode" "-Dtemplate_PGO_PROFILE=$pgo_profile"
+        # Collect again: PGO changes the binary and invalidates its old addresses.
+        if [[ -f $data/perf.data ]]; then mv "$data/perf.data" "$data/autofdo.perf.data"; fi
+        record "$root/build/$mode-generate/$binary"
+        # LLVM 21 accepts v1 layout records, not the newer optional CFG records.
+        generate_propeller_profiles --binary="$root/build/$mode-generate/$binary" \
+            --profile="$data/perf.data" --cc_profile="$data/propeller.cc" --ld_profile="$data/propeller.ld" \
+            --propeller_options='cluster_out_version: VERSION_1 write_cfg_profile: false'
+        build propeller-use "$mode-use" \
+            "-Dtemplate_PGO=$pgo_mode" "-Dtemplate_PGO_PROFILE=$pgo_profile" \
+            "-Dtemplate_PROPELLER_CC_PROFILE=$data/propeller.cc" \
+            "-Dtemplate_PROPELLER_LD_PROFILE=$data/propeller.ld"
+        ;;
+    *) build "$mode-use" "$mode-use" "-Dtemplate_PGO_PROFILE=$pgo_profile" ;;
+esac
+echo "Optimized: $root/build/$mode-use/$binary"

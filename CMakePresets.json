@@ -29,7 +29,8 @@
             "inherits": "release",
             "cacheVariables": {
                 "template_BUILD_TESTS": "OFF",
-                "template_PGO": "OFF"
+                "template_PGO": "OFF",
+                "template_PROPELLER": "OFF"
             }
         },
         {
@@ -37,7 +38,8 @@
             "inherits": "release",
             "cacheVariables": {
                 "template_BUILD_TESTS": "OFF",
-                "template_PGO": "GENERATE"
+                "template_PGO": "GENERATE",
+                "template_PROPELLER": "OFF"
             }
         },
         {
@@ -46,7 +48,39 @@
             "cacheVariables": {
                 "template_BUILD_TESTS": "OFF",
                 "template_PGO": "USE",
-                "template_PGO_PROFILE": "${sourceDir}/build/pgo/profile.profdata"
+                "template_PGO_PROFILE": "${sourceDir}/build/pgo/profile.profdata",
+                "template_PROPELLER": "OFF"
+            }
+        },
+        {
+            "name": "autofdo-generate",
+            "inherits": "pgo-baseline",
+            "cacheVariables": {
+                "template_PGO": "SAMPLE_GENERATE"
+            }
+        },
+        {
+            "name": "autofdo-use",
+            "inherits": "pgo-baseline",
+            "cacheVariables": {
+                "template_PGO": "SAMPLE_USE",
+                "template_PGO_PROFILE": "${sourceDir}/build/pgo/sample.prof"
+            }
+        },
+        {
+            "name": "propeller-generate",
+            "inherits": "pgo-baseline",
+            "cacheVariables": {
+                "template_PROPELLER": "GENERATE"
+            }
+        },
+        {
+            "name": "propeller-use",
+            "inherits": "pgo-baseline",
+            "cacheVariables": {
+                "template_PROPELLER": "USE",
+                "template_PROPELLER_CC_PROFILE": "${sourceDir}/build/pgo/propeller.cc",
+                "template_PROPELLER_LD_PROFILE": "${sourceDir}/build/pgo/propeller.ld"
             }
         },
         {
@@ -79,6 +113,22 @@
         {
             "name": "pgo-use",
             "configurePreset": "pgo-use"
+        },
+        {
+            "name": "propeller-use",
+            "configurePreset": "propeller-use"
+        },
+        {
+            "name": "propeller-generate",
+            "configurePreset": "propeller-generate"
+        },
+        {
+            "name": "autofdo-use",
+            "configurePreset": "autofdo-use"
+        },
+        {
+            "name": "autofdo-generate",
+            "configurePreset": "autofdo-generate"
         },
         {
             "name": "debug",
