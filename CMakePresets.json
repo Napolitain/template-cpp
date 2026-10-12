@@ -25,6 +25,23 @@
             }
         },
         {
+            "name": "pgo-generate",
+            "inherits": "release",
+            "cacheVariables": {
+                "template_BUILD_TESTS": "OFF",
+                "template_PGO": "GENERATE"
+            }
+        },
+        {
+            "name": "pgo-use",
+            "inherits": "release",
+            "cacheVariables": {
+                "template_BUILD_TESTS": "OFF",
+                "template_PGO": "USE",
+                "template_PGO_PROFILE": "${sourceDir}/build/pgo/profile.profdata"
+            }
+        },
+        {
             "name": "coverage",
             "inherits": "base",
             "cacheVariables": {
@@ -43,6 +60,14 @@
         }
     ],
     "buildPresets": [
+        {
+            "name": "pgo-generate",
+            "configurePreset": "pgo-generate"
+        },
+        {
+            "name": "pgo-use",
+            "configurePreset": "pgo-use"
+        },
         {
             "name": "debug",
             "configurePreset": "debug"

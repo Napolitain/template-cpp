@@ -32,6 +32,7 @@ target_compile_options(template_options INTERFACE
 target_link_options(template_options INTERFACE
     $<$<CONFIG:Release>:-flto=full -s>
 )
+include(cmake/pgo.cmake)
 
 add_library(template src/lib.cpp)
 add_library(template::template ALIAS template)

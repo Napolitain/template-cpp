@@ -101,3 +101,58 @@ target_link_libraries(app PRIVATE template::template)
 ```
 
 Add your own dependencies with `FetchContent_Declare(... FIND_PACKAGE_ARGS ...)` so a system package is used when available.
+
+## Profile-guided optimization
+
+Optional [Clang instrumentation PGO](https://clang.llvm.org/docs/UsersManual.html#profile-guided-optimization)
+uses Release, the existing native CPU/LTO settings and separate build directories.
+Use `llvm-profdata` from the same LLVM release as Clang (included in the Nix shell).
+The PGO presets disable tests so test discovery does not enter the training profile.
+Normal presets still use `template_PGO=OFF`; coverage and Mull cannot be combined
+with PGO. Run these commands from the project root:
+
+```sh
+cmake --preset release -B build/pgo-baseline -Dtemplate_BUILD_TESTS=OFF
+cmake --build build/pgo-baseline
+cmake --preset pgo-generate
+cmake --build --preset pgo-generate
+rm -rf build/pgo/raw                  # discard profiles from earlier training
+mkdir -p build/pgo/raw
+LLVM_PROFILE_FILE="$PWD/build/pgo/raw/%m-%p.profraw" ./build/pgo-generate/template_example
+# Repeat the preceding command with your representative application workloads.
+llvm-profdata merge build/pgo/raw/*.profraw -o build/pgo/profile.profdata
+cmake --preset pgo-use
+cmake --build --preset pgo-use
+./build/pgo-use/template_example
+hyperfine --warmup 3 './build/pgo-baseline/template_example' './build/pgo-use/template_example'
+```
+
+`hyperfine` is an optional separate install. The greeting is a pipeline smoke test,
+not a performance workload: replace it with realistic input sizes, hot paths and
+concurrency, then benchmark both binaries on an independent evaluation workload.
+Check identical outputs and run your application tests against the optimized build.
+Keep source, compiler, dependencies and CPU flags fixed while collecting/applying
+profiles; retrain after changes and inspect missing/stale-profile diagnostics.
+Let training processes exit normally to write profiles. Do not merge with `-sparse`
+(that is for coverage), and do not use coverage/Mull data as training profiles.
+An alternate profile must be an absolute path:
+`cmake --preset pgo-use -Dtemplate_PGO_PROFILE=/absolute/path/app.profdata`.
+Changing its contents triggers recompilation.
+
+### Sampling and code layout
+
+Clang also supports [sample PGO / AutoFDO](https://clang.llvm.org/docs/UsersManual.html#using-sampling-profilers).
+This requires a separate profiling build with `-gline-tables-only`,
+`-fdebug-info-for-profiling` and `-funique-internal-linkage-names`, and removal of
+the release `-s` link option. On Linux, collect representative `perf` samples and
+convert them with a compatible `create_llvm_prof` (AutoFDO) or `llvm-profgen`, using
+that exact unstripped binary. Rebuild with `-fprofile-sample-use=/absolute/profile`
+and the matching profiling options. Raw `perf.data` is not an LLVM input profile.
+Hardware events, branch-stack support and perf access vary by CPU/kernel, so there
+is no portable sampling preset or validated collection workflow in this template.
+
+[Propeller](https://github.com/google/llvm-propeller) is a separate layout/relinking
+workflow: it needs compatible Clang/LLD, basic-block address maps, branch samples,
+and conversion to both compiler and linker layout profiles. The supplied stripped
+LTO release is not prepared for it. No Propeller preset is provided; follow the
+upstream toolchain-specific procedure and validate the result before using it.
