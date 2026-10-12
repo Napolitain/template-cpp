@@ -25,6 +25,14 @@
             }
         },
         {
+            "name": "pgo-baseline",
+            "inherits": "release",
+            "cacheVariables": {
+                "template_BUILD_TESTS": "OFF",
+                "template_PGO": "OFF"
+            }
+        },
+        {
             "name": "pgo-generate",
             "inherits": "release",
             "cacheVariables": {
@@ -60,6 +68,10 @@
         }
     ],
     "buildPresets": [
+        {
+            "name": "pgo-baseline",
+            "configurePreset": "pgo-baseline"
+        },
         {
             "name": "pgo-generate",
             "configurePreset": "pgo-generate"

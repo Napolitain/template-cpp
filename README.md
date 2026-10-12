@@ -112,8 +112,8 @@ Normal presets still use `template_PGO=OFF`; coverage and Mull cannot be combine
 with PGO. Run these commands from the project root:
 
 ```sh
-cmake --preset release -B build/pgo-baseline -Dtemplate_BUILD_TESTS=OFF
-cmake --build build/pgo-baseline
+cmake --preset pgo-baseline
+cmake --build --preset pgo-baseline
 cmake --preset pgo-generate
 cmake --build --preset pgo-generate
 rm -rf build/pgo/raw                  # discard profiles from earlier training
@@ -138,6 +138,15 @@ Let training processes exit normally to write profiles. Do not merge with `-spar
 An alternate profile must be an absolute path:
 `cmake --preset pgo-use -Dtemplate_PGO_PROFILE=/absolute/path/app.profdata`.
 Changing its contents triggers recompilation.
+
+Keep both `build/pgo-baseline/template_example` (explicit `template_PGO=OFF`) and
+`build/pgo-use/template_example` (profile-use). Rebuilding either preset leaves
+the other binary available. The instrumented `pgo-generate` binary is for training,
+not the performance baseline. PGO can trade performance between workloads and adds
+training/build costs; it is not guaranteed to improve every input. Compare repeated
+runs on evaluation inputs excluded from training, inspect each important workload,
+and keep the baseline when differences are within measurement noise or a regression
+exceeds your application's tolerance. Also compare memory, binary size and build time.
 
 ### Sampling and code layout
 
