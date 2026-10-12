@@ -1,5 +1,7 @@
 # template-cpp
 
+See [AGENTS.md](AGENTS.md) for the working, verification, performance and commit policies.
+
 Minimal C++26 library template: clang, CMake + Ninja, dependencies via `FetchContent` (GoogleTest, RapidCheck), hooks via [prek](https://prek.j178.dev).
 
 ```
